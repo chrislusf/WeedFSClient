@@ -1,8 +1,10 @@
 package net.weedfs.client;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +22,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.CoreProtocolPNames;
 import org.apache.http.util.EntityUtils;
 import com.google.gson.Gson;
+
 
 /*
  *  WeedFSClient Class
@@ -73,7 +76,8 @@ public class WeedFSClient {
         }
         finally {
             try {
-                in.close();
+                if (in != null)
+                    in.close();
             }
             catch (IOException e) {
                 e.printStackTrace();
@@ -169,19 +173,18 @@ public class WeedFSClient {
         }
         
         // 2. download the file
-        BufferedWriter wr = null;
+        BufferedOutputStream wr = null;
         try {
-            
-            in = new BufferedReader(new InputStreamReader(sendHttpGetRequest("http://"
-                    + locations.getOnePublicUrl() + "/", fid, "GET")));
-            String inputLine;
+            InputStream input = sendHttpGetRequest("http://" + locations.getOnePublicUrl()
+                    + "/", fid, "GET");
             
             output.createNewFile();
-            wr = new BufferedWriter(new FileWriter(output));
-            
-            while ((inputLine = in.readLine()) != null) {
-                System.out.println(inputLine);
-                wr.write(inputLine);
+            wr =  new BufferedOutputStream(new FileOutputStream(output));
+
+            byte[] buffer = new byte[1024];
+            int len = -1;
+            while ((len = input.read(buffer)) != -1) {
+                wr.write(buffer, 0 , len);
             }
             result.setSuccess(true);
         }
@@ -343,9 +346,6 @@ public class WeedFSClient {
         con.setRequestProperty("User-Agent", "");
         int responseCode = con.getResponseCode();
         
-        System.out.println("\nSending 'GET' request to URL : " + this.masterAddress + ":"
-                + this.masterPort);
-        System.out.println("Response Code : " + responseCode);
         
         return con.getInputStream();
     }
@@ -355,13 +355,11 @@ public class WeedFSClient {
         WeedFSClient client = new WeedFSClient("localhost", "9333");
         try {
             result = client.write("/WeedFS/test.data");
-            client.read(result.getFid(),
-                    "/WeedFS/test.data1");
+            client.read(result.getFid(), "/WeedFS/test.data1");
             client.delete(result.getFid());
             File file = new File("/WeedFS/test.data1");
             file.delete();
-            client.read(result.getFid(),
-                    "/WeedFS/test.data1");
+            client.read(result.getFid(), "/WeedFS/test.data1");
         }
         catch (Exception e) {
             // TODO Auto-generated catch block
